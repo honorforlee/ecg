@@ -1,0 +1,241 @@
+\documentclass[11pt]{article}
+\setlength{\hoffset}{-68pt}     
+\setlength{\textwidth}{506pt}
+\setlength{\topmargin}{-60pt}
+\setlength{\textheight}{680pt}
+\usepackage{fourier}
+\usepackage[utf8]{inputenc}
+\usepackage{mathrsfs}
+\usepackage{amsmath,amsfonts,amssymb}
+\usepackage{enumitem}
+\usepackage{etoolbox}
+\usepackage{stmaryrd}
+\usepackage{color}
+\usepackage{indentfirst}
+\usepackage{graphicx}
+\usepackage{float}
+\renewcommand{\contentsname}{Contents}
+\makeatletter
+\def\emptyline{\vspace{12pt}}
+\patchcmd{\@makechapterhead}{\bfseries}{\relax}{}{}
+\patchcmd{\@makechapterhead}{\bfseries}{\relax}{}{}
+\patchcmd{\subsubsection}{\bfseries}{\relax}{}{}
+\makeatother
+\usepackage{titlesec}
+\title{\textsf{TS114 Project\\Computer-aided analysis of electrocardiogram signals}}
+\author{\textsf{Benjamin Fovet (bfovet@enseirb-matmeca.fr) and Benjamin Harroue (bharroue@enseirb-matmeca.fr)}}
+\date{\textsf{May 26, 2014}}
+
+\def\emptyline{\vspace{12pt}}
+\newcommand{\e}{\mathrm e}
+\newcommand{\GL}{\mathrm {GL}}
+\DeclareMathOperator*{\argmax}{argmax}
+\renewcommand{\labelitemii}{$\star$}
+
+\begin{document}
+\pagestyle{plain}
+\allowdisplaybreaks
+
+\maketitle
+
+\section{Abstract}
+
+In this project, normal as well as abnormal electrocardiogram (ECG) signals will be used for designing a tool helping medical staff -- mainly cardiologists -- to make their diagnosis easier. Before implementing algorithms with MATLAB, it is important to adapt to the ECG shape, to identify typical waves and to understand how the heart works in general. In the next section, three different methods, in ascending complexity order, are programmed to detect each wave depending on the signal loaded. Afterwards, these waves are used for identifying various pathologies automatically, which is the main purpose of this project and overall, the main interest for clinicians. Finally, a Graphical User Interface (GUI) will provide a user-friendly software.
+
+\tableofcontents
+
+\vspace{8pt}
+\noindent
+\section{Introduction}
+
+Heart diseases are the leading cause of deaths worldwide. This is why clinicians need to detect abnormalities in the cardiovascular system so as to prevent early deaths. For that matter, they use electrocardiograms to diagnose if a patient is healthy or not and in that case, which kind of disease he has. The problem is that ECGs are still computed manually by doctors. To make their task easier, this project is aiming at designing an automatic computing tool to detect irregularities and display them.
+
+\vspace{8pt}
+\section{ECG Visualization}
+
+	\subsection{Time display}
+	
+	\subsubsection{Normal ECG signals}
+	
+	\begin{figure}[H]
+	\centering
+	\includegraphics[scale=0.4]{plot_ecg_normal_1_2_3}
+	\caption{Time display for normal ECG signals}
+	\end{figure}
+	
+Figure 1 shows three normal electrocardiogram signals for an interval of about 4 seconds. For each signal, P and T waves as well as the QRS complex are surrounded. Heart rate is computed using the number of R waves in 4 seconds and multiplied by 15 to have a resulting beat per minute. First ECG signal "ECG 1" heart rate is approximately 90 bpm. Second signal "ECG 2" heart rate is about 60 bpm and the third signal "ECG 3" heart rate is about the same as the first i.e. 90 bpm. Thus, these ECG signals seem to be healthy persons' ECGs, knowing that a normal person heart rate is between 60 and 100 bpm at rest.
+However, P and T waves as seen on the figure are not always easy to spot.
+
+	
+	\subsubsection{ECG signals with pathologies}
+	
+	\begin{figure}[H]
+	\centering
+	\includegraphics[scale=0.4]{plot_ecg_pathological_1_2_3_4}
+	\caption{Time display for ECG signals with pathologies}
+	\end{figure}
+	
+	Figure 2 shows four electrocardiogram signals with pathologies, plotted with an time interval of 4 seconds. The first signal is an atrial fibrillation ECG "ECG AF". Only the QRS complex is clearly visible while P waves are totally absent and T waves are difficult to spot. R waves are also irregular. Its heart rate is 150 bpm. The second signal "ECG VF" represents a ventricular fibrillation ECG which is virtually a sinusoid. Its heart rate is about 300 bpm. The third signal "ECG SSS" is a sick sinus syndrome ECG with a heart rate of about 50 bpm. P and Q waves are not really visible and cycles are irregular. On the last signal "ECG PVC" which is a premature ventricular contraction ECG, only R and S waves are spottable with S waves as amplified as R waves. Its computed heart rate is about 70 bpm.
+	
+	\subsection{Frequency display}
+	
+	\subsubsection{Normal ECG signals}
+	
+	\begin{figure}[H]
+	\centering
+	\includegraphics[scale=0.3]{fft_plot_ecg_normal_1_2_3}
+	\caption{Frequency display for normal ECG signals}
+	\end{figure}
+	
+	Normal ECG spectrums are displayed here between 0 and 50 Hz. Heart rate for each signal is computed using the first spectrum peak after the zero frequency then multiplied by 60 to obtain a result in bpm. First signal heart rate is 89 bpm; second signal heart rate is 53 bpm and third signal heart rate is 82 bpm.
+Overall, these results match those computed in 3.1.1.
+	
+	\subsubsection{ECG signals with pathologies}
+	
+	\begin{figure}[H]
+	\centering
+	\includegraphics[scale=0.3]{fft_plot_ecg_pathological_1_2_3_4}
+	\caption{Frequency display for ECG signals with pathologies}
+	\end{figure}
+	
+ECG spectrums with pathologies are also displayed between 0 and 50 Hz. "ECG AF" computed heart rate is 141 bpm; "ECG VF" heart rate is 285 bpm; "ECG SSS" heart rate is 21 bpm and "ECG PVC" heart rate is 47 bpm. The last two computed heart rates do not match previous results.
+	
+	\section{Detection of P, QRS and T waves}
+	
+	\subsection{QRS detection}
+	
+	\subsubsection{R wave detection}
+	
+	\paragraph*{Method of local maxima} 
+	
+	First, a threshold is computed by using 10,000 samples of the ECG signal corresponding to 28 seconds so it discriminates R waves from other maxima. With these samples, the threshold is computed by substracting the ECG average value of the 10,000 samples to the ECG maximum value of the 10,000 samples then dividing the result by 2. This way, computing a threshold is automatic.
+Following is the display of the ECG signals with R waves using 2 methods. The first one used the $\mathsf{findpeaks}$ function and the second method used a self-made function comparing the distance between two R waves to detect them. On the figure below, the "ECG 1" signal is displayed with its R waves for both methods. Although the two methods seem to be both efficient enough to detect R waves, the $\mathsf{findpeaks}$ function is much more precise. 
+
+	\begin{figure}[H]
+	\centering
+	\includegraphics[scale=0.3]{plot_R_wave_method_1_ecg_1}
+	\caption{Time display for ECG 1 with R waves}
+	\end{figure}
+
+    \paragraph*{Method of the derivative}
+
+In this paragraph, another method is used to detect R waves. First computed and displayed is the  derived signal from the "ECG 1" signal. From this signal, maxima and minima are detected thanks to a computed threshold. Then, R waves are obtained when the derived signal crosses zero between a maxima and a minima. For the "ECG 1" signal, this method seems to be working fine but is less efficient than the first one. 
+	
+	\begin{figure}[H]
+	\centering
+	\includegraphics[scale=0.3]{plot_R_wave_method_2_ecg_1}
+	\caption{Time display for derived ECG 1 and ECG 1 with R waves}
+	\end{figure}
+
+    \paragraph*{Pan and Tompkins algorithm} 
+    
+    Pan and Tompkins algorithm is expected to be the most precise of the three but is also the longest and the most complex.
+    
+    \setlength{\jot}{10pt}
+	\begin{enumerate}
+	\item Band-pass filter 
+	
+	The band-pass filter is a combination of a low-pass filter and a high-pass filter. The two figures below display the ECG signal after being filtered by these these.
+	
+	\begin{figure}[H]
+	\centering
+	\includegraphics[scale=0.4]{PT_low_pass_freq_response}
+	\caption{Low-pass filter frequency response}
+	\end{figure} 
+	
+	\begin{figure}[H]
+	\centering
+	\includegraphics[scale=0.45]{PT_high_pass_freq_response}
+	\caption{High-pass filter frequency response}
+	\end{figure} 
+
+	\item Differentiation 
+	
+	Next is another filter, which is used to differentiate the band-filtered ECG signal.
+	
+	\begin{figure}[H]
+	\centering
+	\includegraphics[scale=0.41]{PT_differentiation_freq_response}
+	\caption{Differentiation filter frequency response}
+	\end{figure} 
+	
+	\item Squaring function 
+	
+	The ECG signal is simply squared to have only positive values.
+	
+	\begin{figure}[H]
+	\centering
+	\includegraphics[scale=0.45]{PT_squared_ecg_1}
+	\caption{Squared ECG 1}
+	\end{figure} 
+	
+	\item Moving window integration 
+	
+	Then, a Moving Window Integration is used to have only one peak for each cycle which makes it easier to find the locations of R waves.
+	
+	\begin{figure}[H]
+	\centering
+	\includegraphics[scale=0.41]{PT_MWI_ecg_1}
+	\caption{Derived ECG 1 and ECG 1 after the moving window integration with R waves displayed}
+	\end{figure} 
+	
+	\item Thresholding
+	
+	Thresholding is finally used to detect R peaks.
+	
+	\begin{figure}[H]
+	\centering
+	\includegraphics[scale=0.3]{PT_thresholded_ecg_1}
+	\caption{ECG 1 after thresholding}
+	\end{figure} 
+		
+	\end{enumerate}
+	\vspace{8pt}
+    
+	\subsubsection{Q and S wave detection}
+	
+	Q and S waves are respectively the first minima before and after the R waves and are displayed at the end of the section.
+	
+	\subsubsection{P and T wave detection}
+	
+	P and T waves are respectively the first maxima before and after the R waves. Below the ECG 1 signal is displayed with all waves computed with the Pan-Tompkins algorithm.
+	
+    \begin{figure}[H]
+	\centering
+	\includegraphics[scale=0.3]{PT_PQRST_display_ecg_1}
+	\caption{ECG 1 with all waves displayed}
+	\end{figure} 
+	
+	\section{Automatic identification of cardiac pathologies}
+	
+	\subsection{Tachycardia/Bradycardia}
+	
+	Detection of arrhythmia pathologies is based on previous computed R waves. Indeed, the interval between two consecutives R waves is estimated to have the heart rate in beats per minute (bpm). Furthermore, knowing that tachycardia and bradycardia are respectively defined by a bpm above 100 and a bpm below 60, a simple conditional statement is used to detect these two states. A variable 'state' returns 'tachycardia', 'bradycardia' or 'normal' if 60 < bpm < 100.
+	
+	\section{ECG denoising}
+	
+	\subsection{Powerline interference}
+	
+	A 50th order low-pass filter with a 0.01 Hz cutoff normalized frequency using the \textsf{fir1} MATLAB filter function is used here to remove the power line interference. The figure below shows that the filtered signal is much clearer with this filtering.
+	
+	\begin{figure}[H]
+	\centering
+	\includegraphics[scale=0.3]{plot_noise_PL}
+	\caption{Filtered ECG using \textsf{fir1}}
+	\end{figure}
+	
+	\subsection{Baseline interference}
+	
+    	A high-pass filter using the \textsf{cheby1} MATLAB filter function is used here to remove the baseline interference with a 1 dB of peak-to-peak ripple and a 0.01 Hz cutoff normalized frequency. With this filtering, the ECG signal is now always flat and does not wander around zero anymore.
+	
+	\begin{figure}[H]
+	\centering
+	\includegraphics[scale=0.3]{plot_noise_BL}
+	\caption{Filtered ECG using \textsf{cheby1}}
+	\end{figure}
+	
+	\section{Conclusion}
+	
+	All signals have not been processed yet. However, it has been demonstrated here that automatic processing of ECG signals are possible and even almost easy if only normal signals are considered. Abnormal signals are a little more difficult to process because of random waves happening at random times. Overall, with all the functions presented in this report are combined, the project's goal to design an easy-to-use tool is virtually achieved. 
+	
+\end{document}
